@@ -9,11 +9,13 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import routes.clientRouting
+import routes.serverRouting
 
 fun Application.configureRouting() {
     routing {
         //customerRouting()
         clientRouting()
+            //serverRouting()
     }
 }
 fun Application.configureSerialization() {

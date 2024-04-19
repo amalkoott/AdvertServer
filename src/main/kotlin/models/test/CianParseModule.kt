@@ -21,14 +21,6 @@ class CianParseModule: ParseVictim() {
         TODO("Not yet implemented")
     }
 
-    override fun getHtmlByQueryParam(parameters: Parameters): Document {
-        TODO("Not yet implemented")
-    }
-
-    override fun getResult(parameters: Parameters, driver: WebDriver): String? {
-        TODO("Not yet implemented")
-    }
-
     val cities = mapOf<String,String>(
         "Санкт-Петербург" to "&region=2",
         "Екатеринбург" to "ekaterinburg.",
@@ -57,89 +49,99 @@ class CianParseModule: ParseVictim() {
 
         // разбираем web-страничку в json-строку
          // > [data-name='CardComponent'] > [data-testid='offer-card'] " ))
-        val result = getJson(driver.findElements(By.cssSelector("[data-name='SearchEngineResultsPage'] > div:nth-of-type(4)")))
-
+        //val result = getJson(driver.findElement(By.cssSelector("[data-name='SearchEngineResultsPage']")))// > div:nth-of-type(6)")))
+        //val result = driver.findElement(By.cssSelector("#frontend-serp")).findElements(By.cssSelector("div > div:nth-of-type(6) > div"))
+        val result = driver.pageSource
         // 4 div в контейнере div.data_name=SearchEngineResultsPage
 
         driver.quit()
-        return result
+        return result.toString()
     }
 
-    fun getJson(resultDiv: List<WebElement?>):String? {
-        val ads = resultDiv[0]!!.findElements(By.cssSelector("div > article[data-name='CardComponent'] > [data-testid='offer-card'] "))
-
+    fun getJson(resultDiv: WebElement?):String? {
+        val ads: List<WebElement?>
         var result = mutableListOf<JsonElement>()
-        for (ad in ads){
-            var resultAd = mutableMapOf<String,String>()
-            val desciptionContainer = ad!!.findElement(By.cssSelector("[data-name='LinkArea']"))
+        try {
+             ads = resultDiv!!.findElements(By.cssSelector("div > article[data-name='CardComponent'] > [data-testid='offer-card'] "))
 
-            // достаем URL
-            val url = desciptionContainer.findElement(By.tagName("a")).getAttribute("href")
-            resultAd["url"]=url
+            for (ad in ads){
+                var resultAd = mutableMapOf<String,String>()
+                val desciptionContainer = ad!!.findElement(By.cssSelector("[data-name='LinkArea']"))
 
-            // достаем название
-            val label = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(1) > a > span > span")).text
-            resultAd["label"]=label
+                // достаем URL
+                val url = desciptionContainer.findElement(By.tagName("a")).getAttribute("href")
+                resultAd["url"]=url
 
-            val divs: List<WebElement> = desciptionContainer.findElements(By.cssSelector("[data-name='LinkArea'] > div"))
-            if (divs.size == 4){
-                // достаем местоположение
-                var travel = ""
-                for (item in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(2) > div:nth-of-type(1) div"))){
-                    travel += item.text
+                // достаем название
+                val label = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(1) > a > span > span")).text
+                resultAd["label"]=label
+
+                val divs: List<WebElement> = desciptionContainer.findElements(By.cssSelector("[data-name='LinkArea'] > div"))
+                if (divs.size == 4){
+                    // достаем местоположение
+                    var travel = ""
+                    for (item in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(2) > div:nth-of-type(1) div"))){
+                        travel += item.text
+                    }
+                    resultAd["travel"]=travel
+
+                    var location = ""
+                    for (a in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(2) > div:nth-of-type(2) > a"))){
+                        location += a.text
+                    }
+                    resultAd["location"]=location
+
+                    // достаем цену
+                    val price = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(1) > span > span")).text
+                    val priceInfo = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(2) > p")).text
+                    resultAd["price"]=price
+                    resultAd["priceInfo"]=priceInfo
+
+                    // достаем описание
+                    val caption = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > [data-name='Description'] > p")).text
+                    resultAd["caption"]=caption
+
+                    // достаем картинки
+                }else{
+                    // достаем местоположение
+                    var travel = ""
+                    for (item in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(1) div"))){
+                        travel += item.text
+                    }
+                    resultAd["travel"]=travel
+
+                    var location = ""
+                    for (a in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(2) > a"))){
+                        location += a.text
+                    }
+                    resultAd["location"]=location
+
+                    // достаем цену
+                    val price = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > div:nth-of-type(1) > span > span")).text
+                    val priceInfo = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > div:nth-of-type(2) > p")).text
+                    resultAd["price"]=price
+                    resultAd["priceInfo"]=priceInfo
+
+                    // достаем описание
+                    val caption = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(5) > [data-name='Description'] > p")).text
+                    resultAd["caption"]=caption
+
+                    // достаем картинки
                 }
-                resultAd["travel"]=travel
-
-                var location = ""
-                for (a in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(2) > div:nth-of-type(2) > a"))){
-                    location += a.text
-                }
-                resultAd["location"]=location
-
-                // достаем цену
-                val price = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(1) > span > span")).text
-                val priceInfo = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(2) > p")).text
-                resultAd["price"]=price
-                resultAd["priceInfo"]=priceInfo
-
-                // достаем описание
-                val caption = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > [data-name='Description'] > p")).text
-                resultAd["caption"]=caption
-
-                // достаем картинки
-            }else{
-                // достаем местоположение
-                var travel = ""
-                for (item in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(1) div"))){
-                    travel += item.text
-                }
-                resultAd["travel"]=travel
-
-                var location = ""
-                for (a in desciptionContainer.findElements(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(2) > a"))){
-                    location += a.text
-                }
-                resultAd["location"]=location
-
-                // достаем цену
-                val price = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > div:nth-of-type(1) > span > span")).text
-                val priceInfo = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(4) > div:nth-of-type(2) > p")).text
-                resultAd["price"]=price
-                resultAd["priceInfo"]=priceInfo
-
-                // достаем описание
-                val caption = desciptionContainer.findElement(By.cssSelector("div:nth-of-type(5) > [data-name='Description'] > p")).text
-                resultAd["caption"]=caption
-
-                // достаем картинки
+                result.add(Json.encodeToJsonElement(resultAd))
             }
-
-
-            result.add(Json.encodeToJsonElement(resultAd))
+        }catch (e:ArrayIndexOutOfBoundsException){
+            println("Главный контейнер пустой!")
         }
-        var json = JsonArray(result)
-        return Json.encodeToString(json)
+        catch (e:Exception){
+            println("Скорее всего, элемент не найден!")
+        }
+        finally {
+            val json = JsonArray(result)
+            return Json.encodeToString(json)
+        }
     }
+
     val urlConstructor = mapOf<String,String>(
         "Снять" to "&deal_type=rent",
         "Посуточно" to "&type=2",

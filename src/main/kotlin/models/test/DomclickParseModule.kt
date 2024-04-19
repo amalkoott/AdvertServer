@@ -29,31 +29,6 @@ class DomclickParseModule:  ParseVictim() {
     override fun setCategories() {
         TODO("Not yet implemented")
     }
-
-    override fun getHtmlByQueryParam(parameters: Parameters): Document {
-        TODO("Not yet implemented")
-    }
-
-
-    override fun getResult(parameters: Parameters, driver: WebDriver): String? {
-        // если города на сайте нет - поиска тоже нет
-        if(cities[parameters.city] != null){
-            URL.insertAt(8,cities[parameters.city]!!)
-        } else return null
-
-        // Собираем URL для нужного запроса
-        when (parameters) {
-            is Flat -> {
-                urlConstructorFlatDomclick(parameters,"sale")
-            }
-            is FlatRent -> urlConstructorFlatRentDomclick(parameters,"rent")
-            is House -> print("House is searching")
-            is HouseRent -> print("HouseRent is searching")
-        }
-
-        driver.quit()
-        return " "
-    }
     override fun getResult(parameters: Map<String,String>, driver: WebDriver): String? {
         // если города на сайте нет - поиска тоже нет
         if(cities[parameters["city"]] != null){
@@ -62,18 +37,15 @@ class DomclickParseModule:  ParseVictim() {
 
         URL += "search" + getUrlFromJSON(parameters)
 
-        var user_id = "132413"
         // получаем web-страничку по URL
         driver.get(URL)//"https://www.google.com/")
 
         val wait = WebDriverWait(driver, 10) // Устанавливаем ожидание до 30 секунд
         wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")))
 
-        val search = driver.findElement(By.cssSelector("[title='Поиск в Google']")).sendKeys(URL)
-
         // разбираем web-страничку в json-строку
         // > [data-name='CardComponent'] > [data-testid='offer-card'] " ))
-        val ads = driver.findElement(By.className("mainContent")).findElements(By.cssSelector("div:nth-of-type(1) > div:nth-of-type(2) > section > section > div:nth-of-type(1) > div"))
+        val ads = driver.findElement(By.className("mainContent")).findElements(By.cssSelector("div:nth-of-type(1) > div:nth-of-type(2) > section > section > div:nth-of-type(1) > [data-e2e-id='offers-list__item'] > div > div > div:nth-of-type(1)"))
 
         val result = getJson(ads)
 
@@ -90,6 +62,41 @@ class DomclickParseModule:  ParseVictim() {
     fun getJson(findElements: MutableList<WebElement>): String? {
         var result = mutableListOf<JsonElement>()
 
+        for (ad in findElements){
+            val descriptionDiv = ad.findElement(By.cssSelector("div:nth-of-type(2)"))
+
+            // достаем url
+            val url = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(2) > a")).getAttribute("href")
+
+            // достаем цену
+            val price = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(1) > div:nth-of-type(1)  > p:nth-of-type(1)")).text
+            val priceInfo = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(1) > div:nth-of-type(1)  > p:nth-of-type(2)")).text
+
+            // достаем название
+            val titles: List<WebElement> = descriptionDiv.findElements(By.cssSelector("div:nth-of-type(2) > a:nth-of-type(1) > span"))
+            var title = ""
+            for (item in titles){
+                title += "${item.text} "
+            }
+
+            // достаем адрес
+            val address = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(2) > span")).text
+
+            // достаем локацию до метро
+            var location = ""
+            val locations: List<WebElement> = descriptionDiv.findElements(By.cssSelector("div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span"))
+            for (item in locations){
+                try {
+                    location += "${item.text} "
+                }catch(e: Exception){}
+            }
+            // достаем описание
+            val description = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(4)")).text
+
+
+            // можем даже все картинки (их url) достать без перехода по ссылкам (охуеть ваще) ** но надо пощелкать по кнопочкам(((
+            //val images: List<WebElement> = ad.findElements(By.cssSelector("div:nth-of-type(1) > div > div > div:nth-of-type(1) > div"))
+        }
 
 
         var json = JsonArray(result)

@@ -55,6 +55,7 @@ curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d
 
 curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d "{\"category\":\"Вторичка\",\"priceMin\":\"25000\",\"priceMax\":\"42000\",\"city\":\"Санкт-Петербург\",\"dealType\":\"Снять\",\"rentType\":\"Долго\",\"toilet\":\"false\",\"amenities\":\"Дети Животные\",\"repair\":\"Косметический\",\"rooms\":\"3\"}"
 
+curl -X GET http://127.0.0.1:8080/test
 
 House
 
@@ -68,6 +69,33 @@ HouseRent
     // - параметры передаются на сервер и обрабатываются
     // - клиент получает ответ, который зависит от параметров
 
+    route("/check"){
+        get{
+           // var dealType = call.request.queryParameters["parameters"]
+            //val jsonResponse = """{"message": "Received parameter: $dealType"}"""
+            //call.respondText(jsonResponse, ContentType.Application.Json)
+            call.respondText("""{"Status": "200: OK"}""",ContentType.Application.Json)
+        }
+    }
+    route("/test"){
+        get{
+            //var parameters = Json.decodeFromString<String?>(call.request.queryParameters["parameters"]!!)
+            val parameters: Map<String, String> = Json.decodeFromString(call.request.queryParameters["parameters"]!!)
+            if(parameters.isNotEmpty()){
+                //val map: Map<String,String?> = mapOf<String,String?>("dealType" to dealType)
+              //  val result = processing(parameters)
+                try {
+                    val response = processing(parameters)
+                    call.respondText(response!!,ContentType.Application.Json)
+                    //getUser()
+                }catch (e:Exception){
+
+                }
+            }
+
+
+        }
+    }
     route("/search") {
         post {
 

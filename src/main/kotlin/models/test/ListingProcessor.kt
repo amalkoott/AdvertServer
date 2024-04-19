@@ -9,40 +9,15 @@ import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.remote.CapabilityType
 import org.openqa.selenium.remote.DesiredCapabilities
+import routes.getUser
 import java.util.*
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 
 class ListingProcessor(private val parser: BaseParseVictim) {
-    /*
-    fun getParameters():String{
-        val listings = parser.getHtmlByQueryParam("")
-        return parser.getFilter(listings)
-    }
 
-     */
-    fun processListings(filterValue: Parameters): String?{
-        // создание поискового драйвера
-        val driver = chromeDriverInit()
-
-        // Navigate to target URL
-       // driver.get("http://ident.me/")
-        //driver.quit()
-
-        /*
-        // Открытие веб-страницы
-        driver.get("https://www.citilink.ru/catalog/smartfony/")
-
-        val wait = WebDriverWait(driver, 30) // Устанавливаем ожидание до 30 секунд
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")))
-*/
-
-
-        return parser.getResult(filterValue, driver)
-    }
-
-    fun processListings(filterValue: Map<String,String>):String?{
+    suspend fun processListings(filterValue: Map<String,String>):String?{
         // создание поискового драйвера
         val driver = chromeDriverInit()
 
@@ -50,20 +25,25 @@ class ListingProcessor(private val parser: BaseParseVictim) {
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    private fun chromeDriverInit(): ChromeDriver { //System.setProperty("webdriver.chrome.driver", Paths.get("chromium//chromedriver-win64//chromedriver.exe").toAbsolutePath().toString())
+    private suspend fun chromeDriverInit(): ChromeDriver { //System.setProperty("webdriver.chrome.driver", Paths.get("chromium//chromedriver-win64//chromedriver.exe").toAbsolutePath().toString())
         System.setProperty("webdriver.chrome.driver", "C://chromium//chromedriver-win64//chromedriver.exe")
 
         val options = ChromeOptions()
         options.addArguments("--remote-allow-origins=*")
+        options.addArguments("--headless")
+
+        // Подключение профиля Dolphin к драйверу
+        //val user = getUser()
+       // options.addArguments("--remote-debugging-port=${user["port"]}");
+        val driver = ChromeDriver(options)
+
+
         //options.setProxy(getProxy())
-
         //options.setCapability("proxy",getProxy())
-
         options.addArguments("--disable-blink-features=AutomationControlled")
         options.addArguments("--disable-extensions")
         options.setExperimentalOption("useAutomationExtension", false)
         options.setExperimentalOption("excludeSwitches", Arrays.asList("enable-automation"))
-
         //options.setExperimentalOption("prefs", chromePrefs)
         //options.setCapability("downloadPath", downloadPath)
         options.setCapability(ChromeOptions.CAPABILITY, this)
@@ -73,9 +53,9 @@ class ListingProcessor(private val parser: BaseParseVictim) {
           options.setPageLoadStrategy(PageLoadStrategy.NORMAL)
 
         // Установка пользовательского агента для Chrome
-        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, например Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0")
+        //options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, например Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0")
 
-        val driver = ChromeDriver(options)
+
 
 
         val dimension = Dimension(1180, 820)

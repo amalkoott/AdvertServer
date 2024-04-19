@@ -12,15 +12,6 @@ class AvitoParseModule:ParseVictim() {
         TODO("Not yet implemented")
     }
 
-    // возвращает HTML
-    override fun getHtmlByQueryParam(parameters: Parameters): Document {
-        TODO("Not yet implemented")
-    }
-
-    override fun getResult(parameters: Parameters, driver: WebDriver): String? {
-        TODO("Not yet implemented")
-    }
-
     override fun getResult(parameters: Map<String, String>, driver: WebDriver): String? {
         TODO("Not yet implemented")
     }
