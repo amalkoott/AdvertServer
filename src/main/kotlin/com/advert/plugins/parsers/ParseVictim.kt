@@ -1,4 +1,6 @@
-package models.test
+package com.advert.plugins.parsers
+
+import com.advert.plugins.parsers.BaseParseVictim
 
 abstract class ParseVictim: BaseParseVictim {
     /* Все модули конкретных сайтов должны уметь:

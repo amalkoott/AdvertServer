@@ -42,6 +42,7 @@ dependencies {
 
     implementation("org.jsoup:jsoup:1.17.2")
 
-
     implementation("org.seleniumhq.selenium:selenium-java:4.1.0")
+
+    implementation("org.apache.httpcomponents.core5:httpcore5:5.2.1")
 }

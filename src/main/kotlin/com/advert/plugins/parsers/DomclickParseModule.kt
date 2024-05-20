@@ -1,16 +1,17 @@
-package models.test
+package com.advert.plugins.parsers
 
 import com.advert.plugins.*
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.*
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.support.ui.ExpectedConditions
 import org.openqa.selenium.support.ui.WebDriverWait
+import java.io.File
 
 class DomclickParseModule:  ParseVictim() {
     override var URL: String = "https://domclick.ru/"
@@ -28,6 +29,18 @@ class DomclickParseModule:  ParseVictim() {
     )
     override fun setCategories() {
         TODO("Not yet implemented")
+    }
+
+    override fun getUrl(parameters: Map<String, String?>): String? {
+        if(cities[parameters["city"]] != null){
+            URL = URL.insertAt(8,cities[parameters["city"]]!!)
+        } else return null
+
+        URL += "search" + getUrlFromJSON(parameters)
+        return URL
+    }
+    override fun getSiteName(): String{
+        return "domclick"
     }
     override fun getResult(parameters: Map<String,String>, driver: WebDriver): String? {
         // если города на сайте нет - поиска тоже нет
@@ -55,6 +68,194 @@ class DomclickParseModule:  ParseVictim() {
 
         return result
     }
+    override fun parsePage(html: String): List<JsonElement>? {
+        try {
+            val doc: Document = Jsoup.parse(html, "UTF-8")
+            return getResult(doc)
+        }catch (e:Exception){
+            println(e.message)
+            return null
+        }
+    }
+
+    override fun parsePage(html: File): List<JsonElement>? {
+        try {
+            val doc: Document = Jsoup.parse(html, "UTF-8")
+            return getResult(doc)
+        }catch (e:Exception){
+            println(e.message)
+            return null
+        }
+    }
+    private fun getResult(doc: Document):List<JsonElement>?{
+        // достаем блок с жисончиками
+        val response = doc.select("body > script:nth-child(4)").dataNodes().get(0).wholeData
+
+        // выделяем часть с нужным жисоном
+        val parts =  response.replace("window.__SSR_STATE__=","").split("window.__SSR_CONTEXT__")
+        val temp = parts[0].split(';')
+        val jsonString = temp.subList(0, temp.size - 1).joinToString("; ") + " "
+
+        // получаем объявления в жисончике
+        val jsonAdverts = Json.parseToJsonElement(jsonString).jsonObject["search"]!!.jsonObject["pages"]!!.jsonObject["0"]
+
+        // определяем тип сделки и делаем все как надо
+        var obj = jsonAdverts!!.jsonArray[0].jsonObject
+        var result: List<JsonElement>? = null
+        val value = obj["dealType"].toString().replace("\"","")+obj["offerType"].toString().replace("\"","")
+        when(value){
+            "rentflat" -> result = getRentJson(jsonAdverts)
+            // todo прописать другое
+            else -> {}
+        }
+
+        /*
+        // что нужно в этом жисончике
+
+
+
+
+"monthlyPayment":0,
+"isOwner":false,
+"isRosreestrApproved":false,
+"hasDiscount":false,
+"discountValue":0.3, *????
+
+
+
+         */
+
+        /* // классичческий парсинг ( не доделан)
+                val ads = doc.getElementsByClass("mainContent").select("div:nth-of-type(1) > div:nth-of-type(2) > section > section > div:nth-of-type(1) > [data-e2e-id='offers-list__item'] > div > div > div:nth-of-type(1)")
+
+               // val resu = getJson(ads)
+
+               // var result = mutableListOf<JsonElement>()
+
+                for (ad in ads){
+                    var resultAd = mutableMapOf<String,String>()
+                    val descriptionDiv = ad.select("div:nth-of-type(2)")
+
+                    // достаем url
+                    val url = descriptionDiv.select("div:nth-of-type(2) > div:nth-of-type(1) > a").attr("href")
+                    resultAd["url"] = url
+
+                    // достаем цену
+                    val price = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(1)> div:nth-of-type(1)  > p:nth-of-type(1)").text()
+                    val priceInfo = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(1)> div:nth-of-type(1)  > p:nth-of-type(2)").text()
+                    resultAd["price"] = price
+                    resultAd["priceInfo"] = priceInfo
+
+                    // достаем название
+                    val title = descriptionDiv.select("div:nth-of-type(2) > a:nth-of-type(1)").attr("aria-label")
+                    /*
+                    var title = ""
+                    for (item in titles){
+                        title += "${item.text()} "
+                    }
+
+                     */
+                    resultAd["title"] = title
+
+                    // достаем адрес
+                    val address = descriptionDiv.select("div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > span").text()
+                    resultAd["address"] = address
+
+                    // достаем локацию до метро
+                    var location = ""
+                    val locations = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span")
+                    for (item in locations){
+                        try {
+                            location += "${item.text()} "
+                        }catch(e: Exception){}
+                    }
+                    resultAd["location"] = location
+
+                    // достаем описание
+                    val description = descriptionDiv.select("div:nth-of-type(4)").text()
+                    resultAd["caption"] = description
+
+                    // можем даже все картинки (их url) достать без перехода по ссылкам (охуеть ваще) ** но надо пощелкать по кнопочкам(((
+                    val img = ad.select("div:nth-of-type(1) > picture")//div > div > div:nth-of-type(1) > div")
+                    println(img.size)
+                }
+        */
+        return result
+    }
+
+    private fun getRentJson(jsonAdverts: JsonElement?):List<JsonElement>?{
+        val result = mutableListOf<JsonElement>()
+
+        jsonAdverts!!.jsonArray.forEach{
+            val ad = it.jsonObject
+            val url =  ad["path"].toString().replace("\"","")// + path (это ссылка)
+
+            // это можно в title собират  house        object info (инфа с метражем)
+            val info = ad["objectInfo"]!!.jsonObject
+            val house = ad["house"]!!.jsonObject
+            val title = "${info["rooms"]}-комн. кваритра, ${info["area"]} кв.м., ${info["floor"]}/${house["floors"]} этаж"
+
+            val description = ad["description"].toString().replace("\"","") // + description
+
+            val location = ad["address"]!!.jsonObject["displayName"].toString().replace("\"","") //         + address
+
+            val subways = ad["address"]!!.jsonObject["subways"]!!.jsonArray
+            var travel =  ""// ????
+            if (subways!!.size != 0){
+                subways.forEach{
+                    val sub = it.jsonObject
+                    val travelType = if (sub["remoteness"]!!.jsonObject["kind"].toString() == "1") "пешком" else "транспортом"
+                    val travelTime = sub["remoteness"]!!.jsonObject["time"]
+                    travel += "м. ${sub["name"].toString().replace("\"","")}, $travelTime мин. $travelType; "
+                }
+            }
+
+
+            val coordinates = "${ad["location"]!!.jsonObject["lat"]} ${ad["location"]!!.jsonObject["lon"]}"  //         + location (координаты)
+
+            val price = ad["price"].toString().replace("\"","") // + price
+
+            val priceInfo: String = if (ad["hasRentCommission"]!!.toString() == "true") "Комиссия" else "" // + hasRentComission (price info)
+
+            val photos = ad["photos"]!!.jsonArray
+            var img = ""
+            photos.forEach{
+                val uri = it.jsonObject["url"].toString().replace("\"","")
+                img += "https://img.dmclk.ru${uri} "
+            }
+
+
+            val publishedDate = ad["publishedDate"].toString().replace("\"","") // "publishedDate":"2024-04-29T13:24:08+00:00",
+
+            val updatedDate = ad["updatedDate"].toString().replace("\"","") // "updatedDate":"2024-04-29T19:28:06.909845+00:00",
+
+
+            val area = ad["objectInfo"]!!.jsonObject["area"].toString().replace("\"","")
+            val floor = ad["objectInfo"]!!.jsonObject["floor"].toString().replace("\"","")
+            val floors = ad["house"]!!.jsonObject["floors"]!!.toString().replace("\"","")
+            val rooms = ad["objectInfo"]!!.jsonObject["rooms"].toString().replace("\"","")
+            val hashAddress = location.replace("улица", "").replace("проезд", "").replace("проспект", "").replace("аллея","").replace("бульвар","").replace("шоссе","").replace(" ","").replace(",","")
+            val hash = (hashAddress + rooms + floors + floor + area + price).hashCode()
+
+
+            val resultAd = mutableMapOf<String,String>()
+            resultAd["url"]=url
+            resultAd["title"]=title
+            resultAd["travel"]=travel
+            resultAd["location"]=location
+            resultAd["price"]=price
+            resultAd["priceInfo"]=priceInfo
+            resultAd["caption"]=description
+            resultAd["img"] = img
+            resultAd["coordinates"] = coordinates
+            resultAd["publishedDate"] = publishedDate
+            resultAd["updatedDate"] = updatedDate
+            resultAd["hash"] = hash.toString()
+            result.add(Json.encodeToJsonElement(resultAd))
+        }
+        return result
+    }
+
     override fun getFilter(doc: Document): String {
         TODO("Not yet implemented")
     }
@@ -159,7 +360,7 @@ class DomclickParseModule:  ParseVictim() {
   "excludeWords": "ремонт",
      */
 
-    private fun getUrlFromJSON(parameters: Map<String, String>): String{
+    private fun getUrlFromJSON(parameters: Map<String, String?>): String{
         var result = "?deal_type=${urlConstructor[parameters["dealType"]]}"
 
         var priceType = ""

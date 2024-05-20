@@ -1,10 +1,11 @@
-package models.test
+package com.advert.plugins.parsers
 
-import com.advert.plugins.Parameters
+import kotlinx.serialization.json.JsonElement
 import org.jsoup.nodes.Document
 import org.openqa.selenium.WebDriver
+import java.io.File
 
-class AvitoParseModule:ParseVictim() {
+class AvitoParseModule: ParseVictim() {
     override var URL: String = "https://www.ozon.ru/category/elektronika-15500/"
     override var queryParam: String = ""
     override var categories: List<String> = listOf()
@@ -12,7 +13,22 @@ class AvitoParseModule:ParseVictim() {
         TODO("Not yet implemented")
     }
 
+    override fun getSiteName(): String {
+        return "avito"
+    }
+    override fun getUrl(parameters: Map<String, String?>): String? {
+        TODO("Not yet implemented")
+    }
+
     override fun getResult(parameters: Map<String, String>, driver: WebDriver): String? {
+        TODO("Not yet implemented")
+    }
+
+    override fun parsePage(document: String): List<JsonElement> {
+        TODO("Not yet implemented")
+    }
+
+    override fun parsePage(document: File): List<JsonElement> {
         TODO("Not yet implemented")
     }
 
