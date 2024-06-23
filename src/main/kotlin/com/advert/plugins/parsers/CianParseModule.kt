@@ -67,13 +67,6 @@ class CianParseModule: ParseVictim() {
         return result.toString()
     }
 
-    /*
-
-    #frontend-serp > div > div:nth-child(5) > div:nth-child(3) > article > div._93444fe79c--card--ibP42 > div > div._93444fe79c--general--BCXJ4 > div > div:nth-child(2) > a > span > span
-
-    #frontend-serp > div > div > div > article > div > div > div > div > div:nth-child(2) > a > span > span
-     */
-
     override fun parsePage(html: String): List<JsonElement>? {
         try {
             val doc: Document = Jsoup.parse(html, "UTF-8")
@@ -87,12 +80,12 @@ class CianParseModule: ParseVictim() {
         try {
             val doc: Document = Jsoup.parse(html, "UTF-8")
 
-            val test: String = doc.getElementsByTag("body").text().replace("\\u002F","/").replace("\\\\\"","'").replace("\\","")
+            //val test: String = doc.getElementsByTag("body").text().replace("\\u002F","/").replace("\\\\\"","'").replace("\\","")
             // достаем jsonArray между "offers" и "paginationUrls"
-            val subString = '[' + test.substringAfter("\"offers\":[").substringBefore("],\"paginationUrls\"") + ']'
-            val jsonAds = Json.parseToJsonElement(subString).jsonArray
+            //val subString = '[' + test.substringAfter("\"offers\":[").substringBefore("],\"paginationUrls\"") + ']'
+            //val jsonAds = Json.parseToJsonElement(subString).jsonArray
 
-            return getRentFromJson(jsonAds)
+            return getResult(doc)
         }catch (e:Exception){
             println(e.message)
             return null
@@ -110,12 +103,19 @@ class CianParseModule: ParseVictim() {
     }
     // парсер с json
     private fun getResult(doc: Document): List<JsonElement>{
-        val test: String = doc.getElementsByTag("body").text().replace("\\u002F","/").replace("\\\\\"","'").replace("\\","")
-        // достаем jsonArray между "offers" и "paginationUrls"
-        val subString = '[' + test.substringAfter("\"offers\":[").substringBefore("],\"paginationUrls\"") + ']'
-        val jsonAds = Json.parseToJsonElement(subString).jsonArray
+        try {
+            // .replace("\\u002F","/").replace("\\\\\"","'").replace("\\\"","'").replace("\\","")
+            // .replace("\\\\u002F","/").replace("\\\\\"","'").replace("\\\"","\"").replace("\\\'","\'")
+            val test: String = doc.getElementsByTag("body").text().replace("\\\\u002F","/").replace("\\\\\"","'").replace("\\\"","\"").replace("\\\'","\'")
+            // достаем jsonArray между "offers" и "paginationUrls"
+            val subString = '[' + test.substringAfter("\\\"offers\\\":[").substringBefore("],\\\"paginationUrls\\\"") + ']'
+            val jsonAds = Json.parseToJsonElement(subString).jsonArray
 
-        return getRentFromJson(jsonAds)
+            return getRentFromJson(jsonAds)
+        }catch (e: Exception){
+            println("Something error for <${doc.location()}>! Error message:\n${e.message}")
+            return emptyList()
+        }
     }
 
     private fun getRentFromJson(jsonAds: JsonArray): List<JsonElement>{
@@ -148,7 +148,8 @@ class CianParseModule: ParseVictim() {
 
             val price = ad["bargainTerms"]!!.jsonObject["price"].toString().replace("\"","") // + price
 
-            var priceInfo = ""
+            var priceInfo = ad["formattedAdditionalInfo"].toString().replace("\"","")
+            /*
             try{
                 val pInfo = ad["bargainTerms"]!!.jsonObject // agentFee, clientFee, deposit, agent bonus
                 priceInfo = if(!(pInfo["agentBonus"] is JsonNull)) "Комиссия ${pInfo["agentBonus"]!!.jsonObject["value"].toString()} руб." else ""
@@ -156,7 +157,7 @@ class CianParseModule: ParseVictim() {
             }catch (e:Exception){
 
             }
-
+*/
             val photos = ad["photos"]!!.jsonArray
             var img = ""
             photos.forEach{

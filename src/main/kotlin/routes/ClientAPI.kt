@@ -1,228 +1,84 @@
 package routes
 
-import com.advert.plugins.RequestParams
 import com.advert.plugins.processing
-import com.example.models.*
-import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
+import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
-/*
- что клиент умеет делать с сервером?
- - запрашивать параметры фильтров при запуске (get)
- - запрашивать поиск по по параметрами (get с параметрами)
-*/
-
 
 fun Route.clientRouting(){
-    route("/") {
+
+//curl -X GET http://127.0.0.1:3000/search?parameters=%7B%22category%22%3A%22%D0%9D%D0%B5%D0%B4%D0%B2%D0%B8%D0%B6%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D1%8C%22%2C%22city%22%3A%22%D0%A1%D0%B0%D0%BD%D0%BA%D1%82-%D0%9F%D0%B5%D1%82%D0%B5%D1%80%D0%B1%D1%83%D1%80%D0%B3%22%2C%22dealType%22%3A%22false%22%2C%22livingType%22%3A%22%D0%92%D1%82%D0%BE%D1%80%D0%B8%D1%87%D0%BA%D0%B0%22%2C%22priceType%22%3A%22false%22%2C%22room%22%3A%22null1%201%20%22%7D -H "Content-Type: application/json"
+
+    route("/"){
         get{
-            call.respondText("Сервер работает")
-        }
-    }
-    route("/filters") {
-        get {
-            if (customerStorage.isNotEmpty()) {
-                call.respond(customerStorage)
-            } else {
-                call.respondText("No customers found", status = HttpStatusCode.OK)
-            }
+            call.respondText("Server is working successful! Hello!", status = HttpStatusCode.OK)
         }
     }
 
-    /// curl -X POST http://127.0.0.1:8080/search  -H "Content-Type: application/json"  -d "{ \"category\": \"Квартиры\",\"price\": 19.99,\"parameters\": {\"floor\": 12,\"footage\": 336}}"
-
-    /// curl -X POST http://127.0.0.1:8080/search  -H "Content-Type: application/json"  -d "{\"price\": 1200,\"floor\": 12}"
-
-    /// curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json"  -d "{\"category\":\"дом\",\"priceMin\":100000.0,\"priceMax\":200000.0,\"city\":\"Москва\",\"includeWords\":\"сад, лес\",\"excludeWords\":\"ремонт\",\"priceType\":true,\"footageMin\":100,\"footageMax\":300,\"floorMin\":1,\"floorMax\":2,\"ceilingHeight\":2,\"locationType\":\"район\",\"locationValue\":\"Таганский\",\"material\":\"кирпич\",\"year\":\"2010\",\"layout\":true,\"sellerType\":\"Собственник\",\"roomCount\":null,\"houseType\":\"коттедж\",\"footageArea\":1000,\"timeToCity\":30,\"toilet\":true,\"rent\":true,\"rentDateFrom\":\"2024-05-01\",\"rentDateTo\":\"2025-05-01\",\"guestCount\":\"2\",\"rules\":\"smoking\",\"paymentsRules\":\"rent\"}"
-
-    /*
-Flat
-   curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d "{\"category\":\"Недвижимость\",\"priceMin\":100000.0,\"priceMax\":200000.0,\"city\":\"Москва\",\"includeWords\":\"школа, парк\",\"excludeWords\":\"ремонт\",\"priceType\":true,\"footageMin\":50,\"footageMax\":100,\"floorMin\":1,\"floorMax\":5,\"ceilingHeight\":2,\"locationType\":true,\"locationValue\":\"Таганская\",\"material\":\"кирпич\",\"year\":\"2020\",\"layout\":true,\"sellerType\":\"Собственник\",\"roomCount\":3,\"flatType\":\"Неважно\",\"balcony\":true,\"floorType\":\"НеПоследний\",\"travelTime\":15,\"travelTimeType\":true,\"toilet\":true}"
-
-FlatRent
-curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d "{\"category\":\"Недвижимость\",\"priceMin\":30000.0,\"priceMax\":50000.0,\"city\":\"Санкт-Петербург\",\"includeWords\":\"мебель, бытовая техника\",\"excludeWords\":\"ремонт\",\"priceType\":true,\"footageMin\":50,\"footageMax\":80,\"floorMin\":3,\"floorMax\":10,\"ceilingHeight\":1,\"locationType\":true,\"locationValue\":\"Приморская\",\"material\":\"панель\",\"year\":\"2000\",\"layout\":true,\"sellerType\":\"Собственник\",\"roomCount\":2,\"flatType\":\"Апартаменты\",\"balcony\":true,\"floorType\":\"НеПоследний\",\"travelTime\":10,\"travelTimeType\":true,\"toilet\":true,\"rent\":true,\"rentDateFrom\":\"01.05.2024\",\"rentDateTo\":\"01.05.2025\",\"guestCount\":2,\"rules\":\"Дети\",\"paymentsRules\":\"БезЗалога\"}"
-
-curl -X POST http://127.0.0.1:8080/search -H "Content-Type: application/json" -d "{\"category\":\"Вторичка\",\"priceMin\":\"30000.0\",\"priceMax\":\"50000.0\",\"city\":\"Санкт-Петербург\",\"includeWords\":\"мебель, бытовая техника\",\"excludeWords\":\"ремонт\",\"priceType\":\"true\",\"footageMin\":\"50\",\"footageMax\":\"80\",\"floorMin\":\"3\",\"floorMax\":\"10\",\"ceilingHeight\":\"1\",\"locationType\":\"true\",\"locationValue\":\"Приморская\",\"material\":\"панель\",\"year\":\"2000\",\"layout\":\"true\",\"sellerType\":\"Собственник\",\"roomCount\":\"2\",\"flatType\":\"Апартаменты\",\"balcony\":\"true\",\"floorType\":\"НеПоследний\",\"travelTime\":\"10\",\"travelType\":\"true\",\"toilet\":\"true\",\"rent\":\"true\",\"rentDateFrom\":\"01.05.2024\",\"rentDateTo\":\"01.05.2025\",\"guestCount\":\"2\",\"rules\":\"Дети\"}"
-
-curl -X GET http://127.0.0.1:8080/test -H "Content-Type: application/json" -d "{\"category\":\"Вторичка\",\"priceMin\":\"25000\",\"priceMax\":\"42000\",\"city\":\"Санкт-Петербург\",\"dealType\":\"Снять\",\"rentType\":\"Долго\",\"toilet\":\"false\",\"amenities\":\"Дети Животные\",\"repair\":\"Косметический\",\"rooms\":\"3\"}"
-
- curl -X GET http://127.0.0.1:8080/test -H "Content-Type: application/json" -d "{\"parameters\"=\"{\"city\": \"Санкт-Петербург\",\"livingType\": \"Вторичка\"}\"}"
-
- curl -i -H "Accept: application/json" "http://127.0.0.1:8080/test{"param0":"pradeep"}"
-
- curl -X GET http://127.0.0.1:8080/test?parameters={"category":"Недвижимость","city":"Санкт-Петербург","dealType":"false","livingType":"Вторичка","priceType":"false"} -H "Content-Type: application/json"
-
- curl -X GET http://127.0.0.1:8080/test?parameters={\"category\":\"Недвижимость\",\"city\":\"Санкт-Петербург\",\"dealType\":\"false\",\"livingType\":\"Вторичка\",\"priceType\":\"false\"} -H "Content-Type: application/json"
-
-House
-"parameters="{\"city\": \"Санкт-Петербург\",\"livingType\": \"Вторичка\"}""
-"{\"parameters\": {\"city\": \"Санкт-Петербург\",\"livingType\": \"Вторичка\"}}"
-
- curl -X GET http://127.0.0.1:8080/test?parameters="{"city":"Санкт-Петербург"}" -H "Content-Type: application/json" -d "{\"city\":\"Санкт-Петербург\"}"
-
-HouseRent
-
-curl -X GET http://127.0.0.1:8080/test?parameters=%7B%22category%22%3A%22%D0%9D%D0%B5%D0%B4%D0%B2%D0%B8%D0%B6%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D1%8C%22%2C%22city%22%3A%22%D0%A1%D0%B0%D0%BD%D0%BA%D1%82-%D0%9F%D0%B5%D1%82%D0%B5%D1%80%D0%B1%D1%83%D1%80%D0%B3%22%2C%22dealType%22%3A%22false%22%2C%22livingType%22%3A%22%D0%92%D1%82%D0%BE%D1%80%D0%B8%D1%87%D0%BA%D0%B0%22%2C%22priceType%22%3A%22false%22%2C%22room%22%3A%22null1%201%20%22%7D -H "Content-Type: application/json"
-
-    */
-    /// curl -X GET http://127.0.0.1:8080/test  -H "Content-Type: application/json"  -d "{\"city\":\"Санкт-Петербург\",\"category\": \"Квартиры\", \"count\": 3}"
-
-    // СЦЕНАРИЙ:
-    // - клиент отправляет POST-запрос с параметрами
-    // - параметры передаются на сервер и обрабатываются
-    // - клиент получает ответ, который зависит от параметров
-
-    route("/check"){
-        get{
-           // var dealType = call.request.queryParameters["parameters"]
-            //val jsonResponse = """{"message": "Received parameter: $dealType"}"""
-            //call.respondText(jsonResponse, ContentType.Application.Json)
-            call.respondText("""{"Status": "200: OK"}""",ContentType.Application.Json)
-        }
-    }
-    // curl -G -d "parameters=\"{\"city\": \"Санкт-Петербург\",\"livingType\": \"Вторичка\"}\"" http://127.0.0.1:8080/test
     route("/test"){
-        /*get{
-
-            //val parameters: Map<String, String> = Json.decodeFromString(call.request.queryParameters["parameters"]!!)
+        get{
             // если Map не пустой, то начинаем парсить
                 val parameters: Map<String,String?> = mapOf<String,String?>("city" to "Санкт-Петербург")
                 //  val result = processing(parameters)
                 try {
                     // получаем итоговую JsonArray-строку, которую отправляем на клиента
                     val response = getTestResult(parameters)//processing(parameters)
-                    call.respondText(response!!,ContentType.Application.Json)
+                    call.respondText(response!!,ContentType.Application.Json, status = HttpStatusCode.OK)
                     //getUser()
                 }catch (e:Exception){
-
+                    call.respondText("Something was wrong: /TEST_SEARCH", status = HttpStatusCode.InternalServerError)
                 }
         }
-        */
+    }
+
+    route("/testsearch"){
         get{
-            //var parameters = Json.decodeFromString<String?>(call.request.queryParameters["parameters"]!!)
-            //val queryParameters = call.request.queryParameters
-            val requestParam = call.request.queryParameters["parameters"]!!
+            val map = mapOf<String, String>(
+                "https://example.com/result1" to "Result 1",
+                "https://example.com/result2" to "Result 2",
+                "https://example.com/result3" to "Result 3",
+                "https://example.com/result4" to "Result 4",
+                "https://example.com/result5" to "Result 5",
+                "https://example.com/result6" to "Result 6",
+                "https://example.com/result7" to "Result 7",
+                "https://example.com/result8" to "Result 8",
+                "https://example.com/result9" to "Result 9",
+                "https://example.com/result10" to "Result 10"
+            )
 
-            val modifiedString = requestParam.split(",").joinToString(",") { part ->
-                val keyValue = part.split(":")
-                if (keyValue.size == 2) {
-                    val value = keyValue[1].trim()
-                    if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("\"") && value.endsWith("}"))) {
-                        "$part"
-                    } else {
-                        if(value[value.length - 1] == '}') {
-                            "${keyValue[0]}: \"${value.dropLast(1)}\"}"
-                        } else{
-                            "${keyValue[0]}: \"$value\""
-                        }
-                    }
-                } else {
-                    part
-                }
-            }
+            val json = Json.encodeToJsonElement(map)
 
-            val parameters: Map<String, String> = Json.decodeFromString(modifiedString)
-
-            //val parameters: Map<String, String> = Json.decodeFromString(call.request.queryParameters["parameters"]!!)
-            if(parameters.isNotEmpty()){
-                //val map: Map<String,String?> = mapOf<String,String?>("dealType" to dealType)
-              //  val result = processing(parameters)
-                try {
-                    val response = processing(parameters)
-                    call.respondText(response!!,ContentType.Application.Json)
-                    //getUser()
-                }catch (e:Exception){
-
-                }
-            }
-
-
+            //val data = DataObject("John Doe", 30, "New York")
+            call.respond(HttpStatusCode.OK, json.jsonObject)
         }
-
     }
     route("/search") {
         get{
             val requestParam = call.request.queryParameters["parameters"]!!
-
-            /*
-            val modifiedString = requestParam.split(",").joinToString(",") { part ->
-                val keyValue = part.split(":")
-                if (keyValue.size == 2) {
-                    val value = keyValue[1].trim()
-                    if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("\"") && value.endsWith("}"))) {
-                        "$part"
-                    } else {
-                        if(value[value.length - 1] == '}') {
-                            "${keyValue[0]}: \"${value.dropLast(1)}\"}"
-                        } else{
-                            "${keyValue[0]}: \"$value\""
-                        }
-                    }
-                } else {
-                    part
-                }
-            }
-            */
-
-            val parameters: Map<String, String> = Json.decodeFromString(toJsonFormat(requestParam))
-
+            val modifiedString = requestParam.toJsonFormat()
+            println("Parameters is $modifiedString")
+            val parameters: Map<String, String> = Json.decodeFromString(modifiedString)
             if(parameters.isNotEmpty()){
-                //val map: Map<String,String?> = mapOf<String,String?>("dealType" to dealType)
-                //  val result = processing(parameters)
                 try {
+                    println("Start scrapping...")
                     val response = processing(parameters)
-                    call.respondText(response!!,ContentType.Application.Json)
-                    //getUser()
+                    println("Scrapping was successful!\nResponse size is ${response?.length}, response is $response")
+                    call.respondText(response!!,ContentType.Application.Json, status = HttpStatusCode.OK)
                 }catch (e:Exception){
-
+                    println("Scrapping was failure!")
+                    call.respondText("Something was wrong: /SEARCH", status = HttpStatusCode.InternalServerError)
                 }
             }
-
-
-        }
-        post {
-            try {
-                //val requestParams = Json.decodeFromString(RequestParams, call.receiveText())
-                //var text = JSONObject(call.receiveText())
-                //println(text)
-                val map: Map<String, String> = Json.decodeFromString(call.receiveText())
-                val result = processing(map)
-
-                //val result = processing()
-
-                if (result != null) {
-                    call.respondText(result.toString())
-                }
-            }
-            catch (e: BadRequestException){
-                call.respondText(e.message!!)
-            }
-            catch (e: Exception){
-                call.respondText(e.message!!)
-            }
-
-
-            //call.respondText(call.receiveText())
-
-            //call.respond(mapOf("result" to result))
-
-            //val customer = call.receive<Customer>()
-            //customerStorage.add(customer)
-            //call.respondText("Customer stored correctly", status = HttpStatusCode.Created)
         }
     }
 }
 
-fun toJsonFormat(requestParam: String): String{
-    return requestParam.split(",").joinToString(",") { part ->
+private fun String.toJsonFormat(): String{
+    return this.split(",").joinToString(",") { part ->
         val keyValue = part.split(":")
         if (keyValue.size == 2) {
             val value = keyValue[1].trim()
@@ -241,7 +97,7 @@ fun toJsonFormat(requestParam: String): String{
     }
 }
 
-fun getTestResult(params: Map<String,String?>):String?{
+private fun getTestResult(params: Map<String,String?>):String?{
     val rent_flat_1 = mapOf<String,String?>(
         "hash" to "1000",
         "url" to "https://spb.cian.ru/rent/flat/300829506/",
@@ -305,5 +161,5 @@ fun getTestResult(params: Map<String,String?>):String?{
     val saleResult = JsonArray(mutableListOf(Json.encodeToJsonElement(sale_flat_1), Json.encodeToJsonElement(sale_flat_2)))
 
 
-    return if(params["dealType"]=="Снять") Json.encodeToString(rentResult) else Json.encodeToString(saleResult)
+    return if(params["dealType"]=="Снять") Json.encodeToString(saleResult) else Json.encodeToString(rentResult)
 }

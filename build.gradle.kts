@@ -22,6 +22,29 @@ application {
 repositories {
     mavenCentral()
 }
+ktor{
+    docker{
+        jreVersion.set(JavaVersion.VERSION_17)
+        localImageName.set("advert-docker-image")
+        imageTag.set("0.0.1-advert-image")
+        /*
+        portMappings.set(listOf(
+            io.ktor.plugin.features.DockerPortMapping(
+                3000,
+                8080,
+                io.ktor.plugin.features.DockerPortMappingProtocol.TCP
+            )
+        ))
+        */
+        externalRegistry.set(
+            io.ktor.plugin.features.DockerImageRegistry.dockerHub(
+                appName = provider { "ktor-app" },
+                username = providers.environmentVariable("DOCKER_HUB_USERNAME"), // setx DOCKER_HUB_USERNAME yourHubUsername
+                password = providers.environmentVariable("DOCKER_HUB_PASSWORD") // setx DOCKER_HUB_PASSWORD yourHubPassword
+            )
+        )
+    }
+}
 
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm")
