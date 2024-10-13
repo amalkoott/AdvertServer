@@ -1,7 +1,7 @@
 package com.advert.plugins.parsers
 
-import com.advert.plugins.*
-import kotlinx.serialization.decodeFromString
+import com.advert.constant.Constants
+import com.advert.tools.insertAt
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.jsoup.Jsoup
@@ -17,57 +17,42 @@ class DomclickParseModule:  ParseVictim() {
     override var URL: String = "https://domclick.ru/"
     override var queryParam: String = ""
     override var categories: List<String> = listOf()
-    val cities = mapOf<String,String>(
-        "Санкт-Петербург" to "spb.",
-        "Екатеринбург" to "ekaterinburg.",
-        "Уфа" to "ufa.",
-        "Краснодар" to "krasnodar.",
-        "Тюмень" to "tyumen.",
-        "Нижний Новгород" to "nn.",
-        "Казань" to "kazan.",
-
-    )
-    override fun setCategories() {
-        TODO("Not yet implemented")
-    }
 
     override fun getUrl(parameters: Map<String, String?>): String? {
-        if(cities[parameters["city"]] != null){
-            URL = URL.insertAt(8,cities[parameters["city"]]!!)
+        if(Constants.dmCities[parameters["city"]] != null){
+            URL = URL.insertAt(8,Constants.dmCities[parameters["city"]]!!)
         } else return null
 
         URL += "search" + getUrlFromJSON(parameters)
         return URL
     }
+
     override fun getSiteName(): String{
         return "dm"
     }
+
     override fun getResult(parameters: Map<String,String>, driver: WebDriver): String? {
         // если города на сайте нет - поиска тоже нет
-        if(cities[parameters["city"]] != null){
-            URL = URL.insertAt(8,cities[parameters["city"]]!!)
+        if(Constants.dmCities[parameters["city"]] != null){
+            URL = URL.insertAt(8,Constants.dmCities[parameters["city"]]!!)
         } else return null
 
         URL += "search" + getUrlFromJSON(parameters)
 
         // получаем web-страничку по URL
-        driver.get(URL)//"https://www.google.com/")
+        driver.get(URL)
 
         val wait = WebDriverWait(driver, 10) // Устанавливаем ожидание до 30 секунд
         wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")))
 
         // разбираем web-страничку в json-строку
-        // > [data-name='CardComponent'] > [data-testid='offer-card'] " ))
         val ads = driver.findElement(By.className("mainContent")).findElements(By.cssSelector("div:nth-of-type(1) > div:nth-of-type(2) > section > section > div:nth-of-type(1) > [data-e2e-id='offers-list__item'] > div > div > div:nth-of-type(1)"))
 
         val result = getJson(ads)
-
-        // 4 div в контейнере div.data_name=SearchEngineResultsPage
-
         driver.quit()
-
         return result
     }
+
     override fun parsePage(html: String): List<JsonElement>? {
         try {
             val doc: Document = Jsoup.parse(html, "UTF-8")
@@ -87,26 +72,15 @@ class DomclickParseModule:  ParseVictim() {
             return null
         }
     }
+
     private fun getResult(doc: Document):List<JsonElement>?{
         // достаем блок с жисончиками
-        // для всего документа:
-        //val response = doc.select("body > script:nth-child(4)").dataNodes().get(0).wholeData
-
         // для zenrows
         val response = doc.select("body").text().split("\\\"search\\\":{\\\"pages\\\":{\\\"0\\\":")
 
-        // localca
-        //val response = doc.select("body").text().split("\"search\":{\"pages\":{\"0\":")
-        // выделяем часть с нужным жисоном
-        //val parts =  response[1].split("\\\"pages\\\":{\\\"0\\\":")
-
         // если локалка, то вместо \\\ берется \
         val parts = response[1].split("]},\\\"csi\\\"")
-        // \"pages\":{\"0\":
-        // .replace("\\u002F","/").replace("\\\\\"","'").replace("\\\"","'").replace("\\","")
-        // .replace("\\\\u002F","/").replace("\\\\\"","'").replace("\\\"","\"").replace("\\\'","\'")
         val jsonString = parts[0].replace("\\\\u002F","/").replace("\\\\\"","'").replace("\\\"","\"").replace("\\\'","\'") + ']'//.split(';')
-//        val jsonString = ""//temp.subList(0, temp.size - 1).joinToString("; ") + " "
         println(jsonString)
         // получаем объявления в жисончике
         val jsonAdverts = Json.parseToJsonElement(jsonString).jsonArray//.jsonObject["search"]!!.jsonObject["pages"]!!.jsonObject["0"]
@@ -126,78 +100,6 @@ class DomclickParseModule:  ParseVictim() {
             else -> {result = emptyList()
             }
         }
-
-        /*
-        // что нужно в этом жисончике
-
-
-
-
-"monthlyPayment":0,
-"isOwner":false,
-"isRosreestrApproved":false,
-"hasDiscount":false,
-"discountValue":0.3, *????
-
-
-
-         */
-
-        /* // классичческий парсинг ( не доделан)
-                val ads = doc.getElementsByClass("mainContent").select("div:nth-of-type(1) > div:nth-of-type(2) > section > section > div:nth-of-type(1) > [data-e2e-id='offers-list__item'] > div > div > div:nth-of-type(1)")
-
-               // val resu = getJson(ads)
-
-               // var result = mutableListOf<JsonElement>()
-
-                for (ad in ads){
-                    var resultAd = mutableMapOf<String,String>()
-                    val descriptionDiv = ad.select("div:nth-of-type(2)")
-
-                    // достаем url
-                    val url = descriptionDiv.select("div:nth-of-type(2) > div:nth-of-type(1) > a").attr("href")
-                    resultAd["url"] = url
-
-                    // достаем цену
-                    val price = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(1)> div:nth-of-type(1)  > p:nth-of-type(1)").text()
-                    val priceInfo = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(1)> div:nth-of-type(1)  > p:nth-of-type(2)").text()
-                    resultAd["price"] = price
-                    resultAd["priceInfo"] = priceInfo
-
-                    // достаем название
-                    val title = descriptionDiv.select("div:nth-of-type(2) > a:nth-of-type(1)").attr("aria-label")
-                    /*
-                    var title = ""
-                    for (item in titles){
-                        title += "${item.text()} "
-                    }
-
-                     */
-                    resultAd["title"] = title
-
-                    // достаем адрес
-                    val address = descriptionDiv.select("div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > span").text()
-                    resultAd["address"] = address
-
-                    // достаем локацию до метро
-                    var location = ""
-                    val locations = descriptionDiv.select("div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span")
-                    for (item in locations){
-                        try {
-                            location += "${item.text()} "
-                        }catch(e: Exception){}
-                    }
-                    resultAd["location"] = location
-
-                    // достаем описание
-                    val description = descriptionDiv.select("div:nth-of-type(4)").text()
-                    resultAd["caption"] = description
-
-                    // можем даже все картинки (их url) достать без перехода по ссылкам (охуеть ваще) ** но надо пощелкать по кнопочкам(((
-                    val img = ad.select("div:nth-of-type(1) > picture")//div > div > div:nth-of-type(1) > div")
-                    println(img.size)
-                }
-        */
         return result
     }
 
@@ -280,7 +182,7 @@ class DomclickParseModule:  ParseVictim() {
         return result
     }
 
-    private fun getRentHouseJson(jsonAdverts: JsonElement?):List<JsonElement>?{
+    private fun getRentHouseJson(jsonAdverts: JsonElement?): List<JsonElement>? {
         val result = mutableListOf<JsonElement>()
 
         jsonAdverts!!.jsonArray.forEach{
@@ -288,7 +190,6 @@ class DomclickParseModule:  ParseVictim() {
                 val ad = it.jsonObject
                 val url =  ad["path"].toString().replace("\"","")// + path (это ссылка)
 
-                // это можно в title собират  house        object info (инфа с метражем)
                 val info = ad["objectInfo"]!!.jsonObject
                 val house = ad["house"]!!.jsonObject//
                 val roomsCount = info["rooms"]!!.toString()
@@ -310,11 +211,8 @@ class DomclickParseModule:  ParseVictim() {
                     }
                 }
 
-
                 val coordinates = "${ad["location"]!!.jsonObject["lat"]} ${ad["location"]!!.jsonObject["lon"]}"  //         + location (координаты)
-
                 val price = ad["price"].toString().replace("\"","") // + price
-
                 val priceInfo: String = if (ad["hasRentCommission"]!!.toString() == "true") "Комиссия" else "" // + hasRentComission (price info)
 
                 val photos = ad["photos"]!!.jsonArray
@@ -324,11 +222,8 @@ class DomclickParseModule:  ParseVictim() {
                     img += "https://img.dmclk.ru${uri} "
                 }
 
-
                 val publishedDate = ad["publishedDate"].toString().replace("\"","") // "publishedDate":"2024-04-29T13:24:08+00:00",
-
                 val updatedDate = ad["updatedDate"].toString().replace("\"","") // "updatedDate":"2024-04-29T19:28:06.909845+00:00",
-
 
                 val area = ad["objectInfo"]!!.jsonObject["area"].toString().replace("\"","")
                 val floor = ad["objectInfo"]!!.jsonObject["floor"].toString().replace("\"","")
@@ -356,9 +251,6 @@ class DomclickParseModule:  ParseVictim() {
                 println("Smth error in dm parse\n <${it.toString()}> \n\n" + e.message)
             }
         }
-        // 2058733569
-        // 2058490569
-        // 2056684507
         return result
     }
 
@@ -728,11 +620,6 @@ class DomclickParseModule:  ParseVictim() {
         return result
     }
 
-
-    override fun getFilter(doc: Document): String {
-        TODO("Not yet implemented")
-    }
-
     fun getJson(findElements: MutableList<WebElement>): String? {
         var result = mutableListOf<JsonElement>()
 
@@ -768,70 +655,14 @@ class DomclickParseModule:  ParseVictim() {
             val description = descriptionDiv.findElement(By.cssSelector("div:nth-of-type(4)")).text
 
 
-            // можем даже все картинки (их url) достать без перехода по ссылкам (охуеть ваще) ** но надо пощелкать по кнопочкам(((
-            //val images: List<WebElement> = ad.findElements(By.cssSelector("div:nth-of-type(1) > div > div > div:nth-of-type(1) > div"))
+            // можем даже все картинки (их url) достать без перехода по ссылкам (!!!) ** но надо пощелкать по кнопочкам(((
+            val images: List<WebElement> = ad.findElements(By.cssSelector("div:nth-of-type(1) > div > div > div:nth-of-type(1) > div"))
         }
 
 
         var json = JsonArray(result)
         return Json.encodeToString(json)
     }
-
-    val urlConstructor = mapOf<String,String>(
-        "Снять" to "rent",
-        "Купить" to "sale",
-        "Вторичка" to "&category=living&offer_type=flat",
-        "Новостройка" to "&category=living&offer_type=layout",
-        "Комната" to "&category=living&offer_type=room",
-        "Дом, дача" to "&category=living&offer_type=house",
-        "Таунхаус" to "&category=living&offer_type=townhouse",
-        "Коттедж" to "&category=living&offer_type=village",
-        "Участок" to "&category=living&offer_type=lot",
-        "Гараж" to "&category=garage&offer_type=garage",
-        "Бокс" to "&category=garage&offer_type=garage_box",
-        "Машиноместо" to "&category=garage&offer_type=parking_place",
-        "БезЗалога" to "&has_deposit=0",
-        "БезКомиссии" to "&has_commission=0",
-        "БезРемонта" to "&renovation=without_repair",
-        "Косметический" to "&renovation=standart",
-        "Евро" to "&renovation=well_done",
-        "Дизайнерский" to "&renovation=design",
-        "БезОтделки" to "&layout_renovation=no_renovation",
-        "Черновая" to "&layout_renovation=rough_finish",
-        "Предчистовая" to "&layout_renovation=pre_finish",
-        "Чистовая" to "&layout_renovation=fine_finish",
-        "Монолитный" to "&wall_type=monolith",
-        "Кирпично-монолитный" to "&wall_type=brick_monolith",
-        "Кирпичны" to "&wall_type=brick",
-        "Панельный" to "&wall_type=panel",
-        "Блочный" to "&wall_type=block",
-        "Деревянный" to "&wall_type=wood",
-        "НеПервый" to "&floor_not_last=1",
-        "НеПоследний" to "&floor_not_first=1",
-        "ТолькоПоследний" to "&floor_last=1",
-        "Собственник" to "&is_owner=1",
-        "Дети" to "&with_children=1",
-        "Животные" to "&with_animals=1",
-        "Интернет" to "&amenities=internet",
-        "Мебель" to "&amenities=living_furniture",
-        "МебельНаКухне" to "&amenities=kitchen_furniture",
-        "Кондиционер" to "&amenities=conditioner",
-        "Посудомойка" to "&amenities=dish_washer",
-        "Телевизор" to "&amenities=tv",
-        "Холодильник" to "&amenities=refrigerator",
-        "Студия" to "&rooms=st",
-        "1" to "&rooms=1",
-        "2" to "&rooms=2",
-        "3" to "&rooms=3",
-        "4+" to "&rooms=4",
-    )
-    /*
-"locationType": "район",
-  "locationValue": "Центральный",
-  "city": "Москва",
-  "includeWords": "новый дом",
-  "excludeWords": "ремонт",
-     */
 
     private fun getUrlFromJSON(parameters: Map<String, String?>): String{
         //var result = "?deal_type=${urlConstructor[parameters["dealType"]]}"
@@ -851,7 +682,7 @@ class DomclickParseModule:  ParseVictim() {
         for (key in parameters.keys){
             if(parameters[key] != null){
                 var add = ""
-                if(key != "dealType") add = "${urlConstructor[parameters[key]]}"
+                if(key != "dealType") add = "${Constants.dmUrlConstructor[parameters[key]]}"
 
                 if(add == "null")
                 {
@@ -882,7 +713,7 @@ class DomclickParseModule:  ParseVictim() {
                     if(key == "rooms" || key == "amenities") {
                         val array = (parameters[key] as String).split(" ").toTypedArray()
                         for(item in array){
-                            result += urlConstructor[item]
+                            result += Constants.dmUrlConstructor[item]
                         }
                     continue
                     }
@@ -892,73 +723,12 @@ class DomclickParseModule:  ParseVictim() {
             }
         }
 
-       // if(parameters["toilet"].toBoolean()) result+="&has_connected_bathrooms=1" else result+="&has_separated_bathrooms=1"
-        //if(parameters["apartment"].toBoolean()) result+="&is_apartment=1" else result+="&is_apartment=0"
-        ///if(parameters["balcony"] as Boolean) result+=""
-
         return result
             //@TODO(сделать проверку на RENT, чтобы в покупку не засовывались параметры RENT (если ввод ошибочный))
         // но если с клиента уже поступает нормально сфоримрованный JSON, нужно ли проверять?
     }
-    private fun String.insertAt(index: Int, stringToInsert: String): String {
-        require(index >= 0 && index <= length) { "Index is out of bounds." }
-        val sub_1 = substring(0, index)
-        val sub_2 = substring(index)
-        return  sub_1 + stringToInsert + sub_2
-    }
-
-    val flatConstructorMap = mapOf<Any,Any>(
-        "category" to mapOf<String,String>(
-            "Вторичка" to "&category=living&offer_type=flat&",
-            "Новостройка" to "&category=living&offer_type=layout&",
-            "Комната" to "&category=living&offer_type=room&",
-            "Дом, дача" to "&category=living&offer_type=house&",
-            "Таунхаус" to "&category=living&offer_type=townhouse&",
-            "Коттедж" to "&category=living&offer_type=village&",
-            "Участок" to "&category=living&offer_type=lot&",
-            "Гараж" to "&category=garage&offer_type=garage&",
-            "Бокс" to "&category=garage&offer_type=garage_box&",
-            "Машиноместо" to "&category=garage&offer_type=parking_place&",
-        ),
-        "paymentsRules" to mapOf<String,String>(
-            "БезЗалога" to "has_deposit=0",
-            "БезКомиссии" to "has_commission=0"
-        ),
-        "priceType" to mapOf<Boolean,String>(
-            true to "&sale_price__",
-            false to "&square_price__"
-        ),
-        "renovation" to mapOf<String,String>(
-            "БезРемонта" to "&renovation=without_repair&",
-            "Косметический" to "&renovation=standart&",
-            "Евро" to "&renovation=well_done&",
-            "Дизайнерский" to "&renovation=design&",
-        )
-    )
-    private fun urlConstructorFlatDomclick(parameters: Flat, dealType: String): String{
-
-       // var category = flatConstructorMap[parameters.category]
-
-        var result = "deal_type=$dealType${flatConstructorMap[parameters.category]}"
-
-        if (parameters.priceMin != null) result += "${flatConstructorMap[parameters.priceType]}gte=${parameters.priceMin}"
-        if (parameters.priceMax != null) result += "${flatConstructorMap[parameters.priceType]}lte=${parameters.priceMax}"
-
-        var te = flatConstructorMap["renovation"]
-
-        return result
-    }
-    private fun urlConstructorFlatRentDomclick(parameters: FlatRent, dealType: String): String{
-
-        var category = flatConstructorMap[parameters.category]
-
-        var result = "deal_type=$dealType$category"
-        if (parameters.priceMin != null) result += "rent_price__gte=${parameters.priceMin}"
-        if (parameters.priceMax != null) result += "rent_price__lte=${parameters.priceMax}"
 
 
-        return ""
-    }
 
 
 }
